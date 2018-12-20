@@ -1,23 +1,32 @@
-import GPy
 import os
+import pickle
+
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import StratifiedKFold
-from .config import PATH_DATA
-from .config import PATH_OUT_DATA
-from .config import FILE_TRAIN
-from .config import FILE_TEST
-from .config import PATH_MODEL
-from .config import PATH_FIG
-from .config import CONFIG
+
 import lib.models as models
+from .config import CHUNK_SIZE
+from .config import CONFIG
+from .config import FILE_TEST
+from .config import FILE_TRAIN
+from .config import PATH_DATA
+from .config import PATH_FIG
+from .config import PATH_MODEL
+from .config import PATH_OUT_DATA
 from .helper.create_dir import create_dir
 from .helper.plot_pred_truth import plot_pred_truth
-import pickle
 
 
 class Train(object):
-    def __init__(self):
+    def __init__(self, index_chunk):
+        """
+        load training and testing data, create a model, run CV and predict on testing data
+
+        index_chunk: which chunk to predict
+        :param index_chunk:
+        """
+        self.index_chunk = index_chunk
         self.X_train = None
         self.Y_train = None
         self.X_test = None
@@ -37,6 +46,10 @@ class Train(object):
         self.X_test = data_test.values
         if CONFIG.sanity:
             self.X_test = self.X_test[:300, ]
+        else:
+            start = self.index_chunk * CHUNK_SIZE
+            end = min((self.index_chunk + 1) * CHUNK_SIZE, self.X_test.shape[0])
+            self.X_test = self.X_test[start:end]
         self.Y_test_pred = 0
 
     @staticmethod
@@ -69,6 +82,8 @@ class Train(object):
 
     def _cv_one_fold(self, index_train, index_valid, fold_id):
         """
+        train or load a trained model to predict on the testing fold and testing data
+
         :param index_train: numpy array of (n,); n is the number of training datapoints
         :param index_valid: numpy array of (m,); m is the number of testing datapoints
         :return:
@@ -79,8 +94,10 @@ class Train(object):
         model_name = CONFIG.type_model+"_CV_%s_fold_%s" % (str(CONFIG.num_fold), str(fold_id))
         model_path = os.path.join(PATH_MODEL, model_name + ".sav")
         try:
-            self.model = pickle.load(open(model_path), 'rb')
-        except:
+            print("loading trained model ------------%s\n" % model_path)
+            self.model = pickle.load(open(model_path, 'rb'))
+        except Exception as error:
+            print("error-----------", error.args)
             self.model = train_model(x_fold_train, y_fold_train)
             pickle.dump(self.model, open(model_path, 'wb'))
         # the gp model return mean and variance in a tuple
@@ -115,24 +132,9 @@ class Train(object):
         res_cv.columns = ["truth", "prediction"]
         res_cv.to_csv(os.path.join(PATH_OUT_DATA, "CV", CONFIG.type_model+"_.csv"), index=False)
         fig_path = os.path.join(PATH_FIG, "CV", CONFIG.type_model+"_"+str(CONFIG.num_fold)+"fold.pdf")
-        plot_pred_truth(res_cv.iloc[:, 0], res_cv.iloc[:, 1], fig_path)
+        plot_pred_truth(res_cv.iloc[:, 0], res_cv.iloc[:, 1], fig_path, CONFIG.sanity)
 
         test_pred = pd.DataFrame(np.hstack((self.X_test, self.Y_test_pred)))
-        pred_file = os.path.join(PATH_OUT_DATA, "pred", CONFIG.type_model+"_pred_.csv")
+        pred_file = os.path.join(PATH_OUT_DATA, "pred", CONFIG.type_model+"_pred_chunk_%d.csv"% self.index_chunk)
         test_pred.to_csv(os.path.join(PATH_OUT_DATA, pred_file), index=False)
-
-    # TO DO predict by loading a trained model
-    def predict(self):
-
-        kernel = GPy.kern.Matern52(self.num_feature, ARD=True) + GPy.kern.White(self.num_feature)
-        self.model = GPy.models.GPRegression(self.data.values[:, :self.num_feature],
-                                             self.data.values[:, self.num_feature:],
-                                             kernel)
-
-        self.model.initialize_parameter()
-        self.model[:] = np.load(os.path.join(PATH_MODEL, CONFIG.type_model + ".npy"))
-        self.model.update_model(True)
-        preds = self.model.predict(self.data.values[:, :self.num_feature])
-        error = preds[0] - self.data.values[:, self.num_feature:]
-        print(np.mean(error))
 

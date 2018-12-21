@@ -31,6 +31,7 @@ class Train(object):
         self.Y_train = None
         self.X_test = None
         self.Y_test_pred = None
+        self.columns = None
         self.num_feature = None
         self.model = None
         self.preds, self.truths = [], []
@@ -39,6 +40,7 @@ class Train(object):
 
     def _prepare_data(self):
         data = pd.read_csv(os.path.join(PATH_DATA, FILE_TRAIN))
+        self.columns = data.columns
         self.num_feature = data.shape[1]-1
         self.X_train = data.values[:, :self.num_feature]
         self.Y_train = data.values[:, self.num_feature:]
@@ -132,9 +134,11 @@ class Train(object):
         res_cv.columns = ["truth", "prediction"]
         res_cv.to_csv(os.path.join(PATH_OUT_DATA, "CV", CONFIG.type_model+"_.csv"), index=False)
         fig_path = os.path.join(PATH_FIG, "CV", CONFIG.type_model+"_"+str(CONFIG.num_fold)+"fold.pdf")
+        print("plot CV-----------------")
         plot_pred_truth(res_cv.iloc[:, 0], res_cv.iloc[:, 1], fig_path, CONFIG.sanity)
 
         test_pred = pd.DataFrame(np.hstack((self.X_test, self.Y_test_pred)))
+        test_pred.columns = self.columns
         pred_file = os.path.join(PATH_OUT_DATA, "pred", CONFIG.type_model+"_pred_chunk_%d.csv"% self.index_chunk)
         test_pred.to_csv(os.path.join(PATH_OUT_DATA, pred_file), index=False)
 

@@ -12,4 +12,4 @@ PATH_FIG = PATH_DATA_HOME + "/out_fig"
 PATH_MODEL = PATH_DATA_HOME + "/model"
 
 Config = namedtuple('Config', 'type_model, num_fold sanity')
-CONFIG = Config(type_model='gp', num_fold=10, sanity=False)
+CONFIG = Config(type_model='gp', num_fold=10, sanity=True)

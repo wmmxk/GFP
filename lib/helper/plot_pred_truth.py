@@ -9,5 +9,6 @@ def plot_pred_truth(truth, pred, fig_path, sanity=False):
     error = round(np.mean(np.absolute(truth - pred)), 2)
     plt.title("MAE: "+str(error))
     plt.savefig(fig_path, bbox_inches='tight')
+    print("Plot CV----------------------")
     if sanity:
         plt.show()

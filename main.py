@@ -1,6 +1,7 @@
 from lib.helper.count_num_rows import count_num_rows
 from lib.train import Train
 from lib.config import CHUNK_SIZE
+from lib.helper.merge_mul_df import merge_mul_df
 
 
 def main():
@@ -10,7 +11,7 @@ def main():
     for index_chunk in range(num_iter):
         train = Train(index_chunk)
         train.cv()
-        if index_chunk > 1:
-            break
+
+    merge_mul_df()
 
 main()
